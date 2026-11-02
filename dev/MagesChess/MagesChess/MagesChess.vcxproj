@@ -200,7 +200,20 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="MagesChess.cpp" />
+    <ClCompile Include="ChessBoard.cpp" />
+    <ClCompile Include="ChessGame.cpp" />
+    <ClCompile Include="ChessRenderer.cpp" />
+    <ClCompile Include="EnchantmentManager.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="Player.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="ChessBoard.h" />
+    <ClInclude Include="ChessGame.h" />
+    <ClInclude Include="ChessRenderer.h" />
+    <ClInclude Include="ChessTypes.h" />
+    <ClInclude Include="EnchantmentManager.h" />
+    <ClInclude Include="Player.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

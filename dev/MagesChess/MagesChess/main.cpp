@@ -1,9 +1,9 @@
-
-
-#include <iostream>
+#include "ChessGame.h"
 
 int main()
 {
-    std::cout << "Hello World!\n";
-}
+    ChessGame game;
+    game.Run();
 
+    return 0;
+} 

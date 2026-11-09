@@ -85,9 +85,10 @@ char ChessRenderer::GetPieceSymbol(const Piece& piece) const
 }
 
 void ChessRenderer::ShowBoard(const ChessBoard& board, const Player& white,
-    const Player& black, const std::string& message) const
+    const Player& black, const std::string& message, PlayerColor turn,
+    bool check, const std::string& lastMove) const
 {
-    std::cout << "\n  MAGE'S CHESS\n"
+    std::cout << "\n  MAGE'S CHESS  |  MILESTONE TWO\n"
         << "  ---------------------------------------\n"
         << "  BLACK: " << ToString(black.GetElement())
         << " | Mana: " << black.GetMana() << "/100\n\n"
@@ -114,6 +115,8 @@ void ChessRenderer::ShowBoard(const ChessBoard& board, const Player& white,
         << "  WHITE: " << ToString(white.GetElement())
         << " | Mana: " << white.GetMana() << "/100\n"
         << "  ---------------------------------------\n"
+        << "  TURN: " << ToString(turn) << (check ? "  [CHECK!]" : "") << "\n"
+        << "  LAST: " << (lastMove.empty() ? "No moves yet" : lastMove) << "\n"
         << "  Uppercase = White | Lowercase = Black\n"
         << "  " << message << '\n';
 }

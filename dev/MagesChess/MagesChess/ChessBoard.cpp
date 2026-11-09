@@ -54,3 +54,9 @@ bool ChessBoard::IsEmpty(Position position) const
 {
     return GetPiece(position).type == PieceType::None;
 }
+
+void ChessBoard::SetPiece(Position position, Piece piece)
+{
+    if (!IsInside(position)) throw std::out_of_range("Chessboard position is out of bounds.");
+    mSquares[position.row][position.column] = piece;
+}

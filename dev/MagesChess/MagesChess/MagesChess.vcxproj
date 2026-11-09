@@ -205,6 +205,7 @@
     <ClCompile Include="ChessRenderer.cpp" />
     <ClCompile Include="EnchantmentManager.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="MoveValidator.cpp" />
     <ClCompile Include="Player.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -213,6 +214,7 @@
     <ClInclude Include="ChessRenderer.h" />
     <ClInclude Include="ChessTypes.h" />
     <ClInclude Include="EnchantmentManager.h" />
+    <ClInclude Include="MoveValidator.h" />
     <ClInclude Include="Player.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

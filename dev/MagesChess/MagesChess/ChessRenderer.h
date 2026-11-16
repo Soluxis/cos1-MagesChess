@@ -3,6 +3,7 @@
 #include "ChessBoard.h"
 #include "Player.h"
 #include <string>
+#include <vector>
 
 class ChessRenderer
 {
@@ -13,7 +14,8 @@ public:
     void ShowBoard(const ChessBoard& board, const Player& white,
         const Player& black, const std::string& message = "",
         PlayerColor turn = PlayerColor::White, bool check = false,
-        const std::string& lastMove = "") const;
+        const std::string& lastMove = "",
+        Position selected = { -1,-1 }, const std::vector<Move>& highlights = {}) const;
     void ShowSquareDetails(Position position, const Piece& piece,
         const Player& owner) const;
     void ShowMessage(const std::string& message) const;

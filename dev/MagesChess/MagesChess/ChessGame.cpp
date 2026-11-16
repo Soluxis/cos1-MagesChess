@@ -50,44 +50,58 @@ bool ChessGame::ParseMove(const std::string& raw, Move& move) {
 }
 
 void ChessGame::PlayMatch() {
-    std::string message = "Enter a move such as e2e4, or type help, moves e2, inspect e2, or menu.";
+    std::string message = "Enter e2e4 for normal moves, or enchant e2e3 for magic. Type help.";
     std::string input;
+    Position highlighted{ -1,-1 };
+    std::vector<Move> highlights;
     while (true) {
+        Player& active = mTurn == PlayerColor::White ? mWhite : mBlack;
+        Player& other = mTurn == PlayerColor::White ? mBlack : mWhite;
+        int ownTurn = (mTurn == PlayerColor::White ? mWhiteTurns : mBlackTurns) + 1;
         const bool check = MoveValidator::IsInCheck(mBoard, mTurn);
-        const auto legal = MoveValidator::LegalMoves(mBoard, mTurn, mEnPassantTarget);
+        const auto normal = MoveValidator::LegalMoves(mBoard, mTurn, mEnPassantTarget);
+        const auto spells = EnchantmentManager::LegalMoves(mBoard, active, ownTurn);
         mRenderer.ClearScreen();
-        mRenderer.ShowBoard(mBoard, mWhite, mBlack, message, mTurn, check, mLastMove);
-        if (legal.empty()) {
+        mRenderer.ShowBoard(mBoard, mWhite, mBlack, message, mTurn, check, mLastMove, highlighted, highlights);
+        std::cout << "  Enchant: " << (active.CanEnchant(ownTurn) ? "Ready (if mana allows)" : "Cooldown / first turn") << "\n";
+        std::cout << "  Recent moves:\n";
+        for (size_t i = mHistory.size() > 5 ? mHistory.size() - 5 : 0; i < mHistory.size(); ++i)
+            std::cout << "    " << mHistory[i] << "\n";
+        if (normal.empty() && spells.empty()) {
             std::cout << "\n  " << (check ? "CHECKMATE! " : "STALEMATE! ");
-            if (check) std::cout << ToString(Opponent(mTurn)) << " wins!\n";
-            else std::cout << "The game is a draw.\n";
-            std::cout << "  Press Enter to return to the menu...";
+            if (check)std::cout << ToString(Opponent(mTurn)) << " wins!\n";
+            else std::cout << "Draw.\n";
+            std::cout << "  Press Enter to return to menu...";
             std::getline(std::cin, input); return;
         }
         std::cout << "\n  " << ToString(mTurn) << " move > ";
         if (!std::getline(std::cin, input))return;
         if (input == "menu" || input == "0" || input == "quit")return;
         if (input == "help") {
-            message = "Moves: e2e4 | Promote: e7e8q | moves e2 | inspect e2 | menu";
+            message = "e2e4 | enchant e2e3 | moves e2 | spells e2 | inspect e2 | menu";
             continue;
         }
-        if (input.size() >= 6 && input.substr(0, 6) == "moves ") {
+        bool enchanted = false;
+        if (input.rfind("enchant ", 0) == 0) { enchanted = true; input = input.substr(8); }
+        else if (input.rfind("e ", 0) == 0) { enchanted = true; input = input.substr(2); }
+        if (input.rfind("moves ", 0) == 0 || input.rfind("spells ", 0) == 0) {
+            bool magical = input.rfind("spells ", 0) == 0;
             Position from;
-            if (!ParseSquare(input.substr(6), from)) { message = "Invalid square."; continue; }
-            message = "Legal moves from " + SquareName(from) + ": ";
+            if (!ParseSquare(input.substr(magical ? 7 : 6), from)) { message = "Invalid square."; continue; }
+            highlighted = from; highlights.clear();
+            for (const auto& candidate : (magical ? spells : normal))if (candidate.from == from)highlights.push_back(candidate);
+            message = (magical ? "Enchanted" : "Normal") + std::string(" moves from ") + SquareName(from) + ": ";
             int count = 0;
-            for (const auto& m : legal) if (m.from == from) {
+            for (const auto& m : (magical ? spells : normal))if (m.from == from) {
                 if (count++)message += ", ";
                 message += SquareName(m.to);
-                if (m.promotion != PieceType::None) {
-                    char p = m.promotion == PieceType::Queen ? 'q' : m.promotion == PieceType::Rook ? 'r' : m.promotion == PieceType::Bishop ? 'b' : 'n';
-                    message += p;
-                }
+                if (m.promotion != PieceType::None)
+                    message += m.promotion == PieceType::Queen ? 'q' : m.promotion == PieceType::Rook ? 'r' : m.promotion == PieceType::Bishop ? 'b' : 'n';
             }
-            if (!count)message += "none";
+            if (!count)message += "none (or insufficient mana/cooldown)";
             continue;
         }
-        if (input.size() >= 8 && input.substr(0, 8) == "inspect ") {
+        if (input.rfind("inspect ", 0) == 0) {
             Position p;
             if (!ParseSquare(input.substr(8), p)) { message = "Invalid square."; continue; }
             Piece piece = mBoard.GetPiece(p);
@@ -96,36 +110,55 @@ void ChessGame::PlayMatch() {
             mRenderer.ShowSquareDetails(p, piece, owner);
             std::cout << "\n  Press Enter to continue...";
             if (!std::getline(std::cin, input))return;
-            message = "Select your next move.";
-            continue;
+            message = "Select your next move."; continue;
         }
         Move move;
-        if (!ParseMove(input, move)) { message = "Invalid format. Example: e2e4 or e7e8q."; continue; }
+        if (!ParseMove(input, move)) { message = "Invalid move. Example: e2e4 or enchant e2e3."; continue; }
+        move.enchanted = enchanted;
         const Piece moving = mBoard.GetPiece(move.from);
         if (moving.type == PieceType::None || moving.color != mTurn) { message = "Select one of your own pieces."; continue; }
         if (moving.type == PieceType::Pawn && (move.to.row == 0 || move.to.row == 7) && move.promotion == PieceType::None) {
-            message = "Promotion requires a piece: q (queen), r (rook), b (bishop), or n (knight)."; continue;
+            message = "Promotion requires q, r, b, or n appended to the move."; continue;
         }
-        if (!MoveValidator::IsLegal(mBoard, mTurn, move, mEnPassantTarget)) {
-            message = "Illegal move: blocked, invalid pattern, or leaves your king in check."; continue;
+        int enemies = 0, friendlies = 0;
+        bool capture = false, castle = false;
+        if (enchanted) {
+            if (!EnchantmentManager::CanEnchant(active, moving.type, ownTurn)) {
+                message = "Enchantment unavailable: mana, cooldown, or unsupported piece."; continue;
+            }
+            SpellResult outcome;
+            if (!EnchantmentManager::TryApply(mBoard, move, mTurn, active.GetElement(), outcome)) {
+                message = "Illegal enchanted move or king left in check. Use spells <square>."; continue;
+            }
+            active.SpendMana(EnchantmentManager::GetCost(moving.type));
+            active.RecordEnchantment(ownTurn);
+            mBoard = outcome.board;
+            enemies = outcome.enemyLost; friendlies = outcome.friendlyLost;
         }
-        const bool enPassant = moving.type == PieceType::Pawn && move.to == mEnPassantTarget &&
-            mBoard.IsEmpty(move.to) && move.from.column != move.to.column;
-        const bool capture = enPassant || !mBoard.IsEmpty(move.to);
-        const bool castle = moving.type == PieceType::King && std::abs(move.to.column - move.from.column) == 2;
-        MoveValidator::Apply(mBoard, move, mEnPassantTarget);
-        if (capture) {
-            Player& capturer = mTurn == PlayerColor::White ? mWhite : mBlack;
-            Player& victim = mTurn == PlayerColor::White ? mBlack : mWhite;
-            capturer.GainMana(5); victim.GainMana(15);
+        else {
+            if (!MoveValidator::IsLegal(mBoard, mTurn, move, mEnPassantTarget)) {
+                message = "Illegal move: blocked, invalid pattern, or leaves your king in check."; continue;
+            }
+            bool enPassant = moving.type == PieceType::Pawn && move.to == mEnPassantTarget &&
+                mBoard.IsEmpty(move.to) && move.from.column != move.to.column;
+            capture = enPassant || !mBoard.IsEmpty(move.to);
+            castle = moving.type == PieceType::King && std::abs(move.to.column - move.from.column) == 2;
+            MoveValidator::Apply(mBoard, move, mEnPassantTarget);
+            enemies = capture ? 1 : 0;
         }
+        for (int i = 0; i < enemies; ++i) { active.GainMana(5); other.GainMana(15); }
+        for (int i = 0; i < friendlies; ++i) other.GainMana(15);
         mEnPassantTarget = { -1,-1 };
-        if (moving.type == PieceType::Pawn && std::abs(move.to.row - move.from.row) == 2)
+        if (!enchanted && moving.type == PieceType::Pawn && std::abs(move.to.row - move.from.row) == 2)
             mEnPassantTarget = { (move.from.row + move.to.row) / 2,move.from.column };
         mLastMove = ToString(mTurn) + " " + SquareName(move.from) + "-" + SquareName(move.to);
-        if (capture)mLastMove += " (capture: +5/+15 mana)";
+        if (enchanted)mLastMove += " [" + ToString(active.GetElement()) + " " + EnchantmentManager::GetAbilityName(moving.type, active.GetElement()) + "]";
+        if (enemies || friendlies)mLastMove += " (enemy lost: " + std::to_string(enemies) + ", friendly lost: " + std::to_string(friendlies) + ")";
         if (castle)mLastMove += " (castle)";
         if (move.promotion != PieceType::None)mLastMove += " (promoted to " + ToString(move.promotion) + ")";
+        mHistory.push_back(mLastMove);
+        highlighted = { -1,-1 }; highlights.clear();
+        if (mTurn == PlayerColor::White)++mWhiteTurns; else ++mBlackTurns;
         mTurn = Opponent(mTurn);
         if (mTurn == PlayerColor::White)++mFullMoveNumber;
         message = "Move accepted.";
@@ -134,7 +167,7 @@ void ChessGame::PlayMatch() {
 
 void ChessGame::StartNewGame() {
     mBoard.Reset(); mWhite.Reset(SelectElement(PlayerColor::White)); mBlack.Reset(SelectElement(PlayerColor::Black));
-    mTurn = PlayerColor::White; mEnPassantTarget = { -1,-1 }; mFullMoveNumber = 1; mLastMove = "";
+    mTurn = PlayerColor::White; mEnPassantTarget = { -1,-1 }; mFullMoveNumber = 1; mLastMove = ""; mHistory.clear(); mWhiteTurns = 0; mBlackTurns = 0;
     PlayMatch();
 }
 

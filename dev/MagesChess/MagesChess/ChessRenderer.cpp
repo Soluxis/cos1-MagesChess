@@ -2,6 +2,7 @@
 #include "EnchantmentManager.h"
 #include <cctype>
 #include <iostream>
+#include <algorithm>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -86,9 +87,10 @@ char ChessRenderer::GetPieceSymbol(const Piece& piece) const
 
 void ChessRenderer::ShowBoard(const ChessBoard& board, const Player& white,
     const Player& black, const std::string& message, PlayerColor turn,
-    bool check, const std::string& lastMove) const
+    bool check, const std::string& lastMove,
+    Position selected, const std::vector<Move>& highlights) const
 {
-    std::cout << "\n  MAGE'S CHESS  |  MILESTONE TWO\n"
+    std::cout << "\n  MAGE'S CHESS  |  MILESTONE THREE\n"
         << "  ---------------------------------------\n"
         << "  BLACK: " << ToString(black.GetElement())
         << " | Mana: " << black.GetMana() << "/100\n\n"
@@ -101,7 +103,13 @@ void ChessRenderer::ShowBoard(const ChessBoard& board, const Player& white,
         {
             const Piece& piece = board.GetPiece({ row, column });
             const bool light = (row + column) % 2 == 0;
-            const int background = light ? 7 : 8;
+            const Position current{ row,column };
+            const bool chosen = current == selected;
+            const bool possible = std::any_of(highlights.begin(), highlights.end(),
+                [&](const Move& m) {return m.to == current; });
+            const bool magical = std::any_of(highlights.begin(), highlights.end(),
+                [&](const Move& m) {return m.to == current && m.enchanted; });
+            const int background = chosen ? 6 : possible ? (magical ? 5 : 2) : (light ? 7 : 8);
             const int foreground = piece.type == PieceType::None ? background
                 : (piece.color == PlayerColor::White ? 15 : 0);
             SetConsoleColor(foreground, background);
@@ -118,6 +126,7 @@ void ChessRenderer::ShowBoard(const ChessBoard& board, const Player& white,
         << "  TURN: " << ToString(turn) << (check ? "  [CHECK!]" : "") << "\n"
         << "  LAST: " << (lastMove.empty() ? "No moves yet" : lastMove) << "\n"
         << "  Uppercase = White | Lowercase = Black\n"
+        << "  Highlight: yellow=selected, green=normal, purple=magic\n"
         << "  " << message << '\n';
 }
 

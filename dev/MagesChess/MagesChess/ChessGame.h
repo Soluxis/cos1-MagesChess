@@ -3,6 +3,9 @@
 #include "ChessRenderer.h"
 #include "Player.h"
 #include "MoveValidator.h"
+#include "EnchantmentManager.h"
+#include "InputManager.h"
+#include <vector>
 #include <string>
 
 class ChessGame {
@@ -18,6 +21,9 @@ private:
     Position mEnPassantTarget{ -1,-1 };
     int mFullMoveNumber = 1;
     std::string mLastMove;
+    std::vector<std::string> mHistory;
+    int mWhiteTurns = 0;
+    int mBlackTurns = 0;
     void StartNewGame();
     void PlayMatch();
     Element SelectElement(PlayerColor color);

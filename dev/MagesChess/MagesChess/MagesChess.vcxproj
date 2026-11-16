@@ -204,6 +204,7 @@
     <ClCompile Include="ChessGame.cpp" />
     <ClCompile Include="ChessRenderer.cpp" />
     <ClCompile Include="EnchantmentManager.cpp" />
+    <ClCompile Include="InputManager.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MoveValidator.cpp" />
     <ClCompile Include="Player.cpp" />
@@ -214,6 +215,7 @@
     <ClInclude Include="ChessRenderer.h" />
     <ClInclude Include="ChessTypes.h" />
     <ClInclude Include="EnchantmentManager.h" />
+    <ClInclude Include="InputManager.h" />
     <ClInclude Include="MoveValidator.h" />
     <ClInclude Include="Player.h" />
   </ItemGroup>

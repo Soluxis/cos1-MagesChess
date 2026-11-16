@@ -4,6 +4,7 @@
 #include "Player.h"
 #include "MoveValidator.h"
 #include "EnchantmentManager.h"
+#include "InputManager.h"
 #include <vector>
 #include <string>
 

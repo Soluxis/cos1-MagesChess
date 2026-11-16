@@ -50,9 +50,12 @@ bool ChessGame::ParseMove(const std::string& raw, Move& move) {
 }
 
 void ChessGame::PlayMatch() {
-    std::string message = "Enter e2e4 for normal moves, or enchant e2e3 for magic. Type help.";
-    std::string input;
-    Position highlighted{ -1,-1 };
+    std::string message = "Select one of your pieces with Enter to begin.";
+    Position cursor{ 6,4 };
+    Position selected{ -1,-1 };
+    bool enchanted = false;
+    enum class InfoMode { Status, Help, Inspect };
+    InfoMode infoMode = InfoMode::Status;
     std::vector<Move> highlights;
     while (true) {
         Player& active = mTurn == PlayerColor::White ? mWhite : mBlack;
@@ -61,64 +64,82 @@ void ChessGame::PlayMatch() {
         const bool check = MoveValidator::IsInCheck(mBoard, mTurn);
         const auto normal = MoveValidator::LegalMoves(mBoard, mTurn, mEnPassantTarget);
         const auto spells = EnchantmentManager::LegalMoves(mBoard, active, ownTurn);
-        mRenderer.ClearScreen();
-        mRenderer.ShowBoard(mBoard, mWhite, mBlack, message, mTurn, check, mLastMove, highlighted, highlights);
-        std::cout << "  Enchant: " << (active.CanEnchant(ownTurn) ? "Ready (if mana allows)" : "Cooldown / first turn") << "\n";
-        std::cout << "  Recent moves:\n";
-        for (size_t i = mHistory.size() > 5 ? mHistory.size() - 5 : 0; i < mHistory.size(); ++i)
-            std::cout << "    " << mHistory[i] << "\n";
+        mRenderer.ShowGameScreen(mBoard, mWhite, mBlack, mTurn, check, mLastMove, mHistory,
+            ownTurn, active.CanEnchant(ownTurn), message, infoMode == InfoMode::Help,
+            infoMode == InfoMode::Inspect, cursor, selected, highlights);
         if (normal.empty() && spells.empty()) {
             std::cout << "\n  " << (check ? "CHECKMATE! " : "STALEMATE! ");
             if (check)std::cout << ToString(Opponent(mTurn)) << " wins!\n";
             else std::cout << "Draw.\n";
             std::cout << "  Press Enter to return to menu...";
-            std::getline(std::cin, input); return;
+            while (InputManager::ReadKey() != InputKey::Enter) {}
+            return;
         }
-        std::cout << "\n  " << ToString(mTurn) << " move > ";
-        if (!std::getline(std::cin, input))return;
-        if (input == "menu" || input == "0" || input == "quit")return;
-        if (input == "help") {
-            message = "e2e4 | enchant e2e3 | moves e2 | spells e2 | inspect e2 | menu";
+        mRenderer.ShowControls();
+        const InputKey key = InputManager::ReadKey();
+        if (key == InputKey::Menu)return;
+        if (key == InputKey::Up) { infoMode = InfoMode::Status; cursor.row = (cursor.row + 7) % 8; continue; }
+        if (key == InputKey::Down) { infoMode = InfoMode::Status; cursor.row = (cursor.row + 1) % 8; continue; }
+        if (key == InputKey::Left) { infoMode = InfoMode::Status; cursor.column = (cursor.column + 7) % 8; continue; }
+        if (key == InputKey::Right) { infoMode = InfoMode::Status; cursor.column = (cursor.column + 1) % 8; continue; }
+        if (key == InputKey::Help) { infoMode = infoMode == InfoMode::Help ? InfoMode::Status : InfoMode::Help; continue; }
+        if (key == InputKey::Escape && infoMode != InfoMode::Status) { infoMode = InfoMode::Status; continue; }
+        if (key == InputKey::Escape) { selected = { -1,-1 }; enchanted = false; highlights.clear(); message = "Selection cancelled."; continue; }
+        if (key == InputKey::Inspect) {
+            infoMode = infoMode == InfoMode::Inspect ? InfoMode::Status : InfoMode::Inspect;
             continue;
         }
-        bool enchanted = false;
-        if (input.rfind("enchant ", 0) == 0) { enchanted = true; input = input.substr(8); }
-        else if (input.rfind("e ", 0) == 0) { enchanted = true; input = input.substr(2); }
-        if (input.rfind("moves ", 0) == 0 || input.rfind("spells ", 0) == 0) {
-            bool magical = input.rfind("spells ", 0) == 0;
-            Position from;
-            if (!ParseSquare(input.substr(magical ? 7 : 6), from)) { message = "Invalid square."; continue; }
-            highlighted = from; highlights.clear();
-            for (const auto& candidate : (magical ? spells : normal))if (candidate.from == from)highlights.push_back(candidate);
-            message = (magical ? "Enchanted" : "Normal") + std::string(" moves from ") + SquareName(from) + ": ";
-            int count = 0;
-            for (const auto& m : (magical ? spells : normal))if (m.from == from) {
-                if (count++)message += ", ";
-                message += SquareName(m.to);
-                if (m.promotion != PieceType::None)
-                    message += m.promotion == PieceType::Queen ? 'q' : m.promotion == PieceType::Rook ? 'r' : m.promotion == PieceType::Bishop ? 'b' : 'n';
+        infoMode = InfoMode::Status;
+        if (key == InputKey::Enchant) {
+            if (selected.row < 0) { message = "Select one of your pieces first."; continue; }
+            if (!enchanted && !EnchantmentManager::CanEnchant(active, mBoard.GetPiece(selected).type, ownTurn)) {
+                message = "Enchantment unavailable: mana, cooldown, or unsupported piece."; continue;
             }
-            if (!count)message += "none (or insufficient mana/cooldown)";
+            enchanted = !enchanted;
+            highlights.clear();
+            for (const auto& m : (enchanted ? spells : normal))if (m.from == selected)highlights.push_back(m);
+            message = enchanted ? "Enchanted destinations highlighted." : "Normal destinations highlighted.";
             continue;
         }
-        if (input.rfind("inspect ", 0) == 0) {
-            Position p;
-            if (!ParseSquare(input.substr(8), p)) { message = "Invalid square."; continue; }
-            Piece piece = mBoard.GetPiece(p);
-            if (piece.type == PieceType::None) { message = "That square is empty."; continue; }
-            const Player& owner = piece.color == PlayerColor::White ? mWhite : mBlack;
-            mRenderer.ShowSquareDetails(p, piece, owner);
-            std::cout << "\n  Press Enter to continue...";
-            if (!std::getline(std::cin, input))return;
-            message = "Select your next move."; continue;
+        if (key != InputKey::Enter)continue;
+        if (selected.row < 0) {
+            const Piece piece = mBoard.GetPiece(cursor);
+            if (piece.type == PieceType::None || piece.color != mTurn) { message = "Select one of your own pieces."; continue; }
+            selected = cursor; enchanted = false; highlights.clear();
+            for (const auto& m : normal)if (m.from == selected)highlights.push_back(m);
+            message = "Selected " + ToString(piece.type) + " on " + SquareName(selected) + ". Press E for magic.";
+            continue;
         }
-        Move move;
-        if (!ParseMove(input, move)) { message = "Invalid move. Example: e2e4 or enchant e2e3."; continue; }
-        move.enchanted = enchanted;
+        if (cursor == selected) { selected = { -1,-1 }; enchanted = false; highlights.clear(); message = "Selection cancelled."; continue; }
+        const auto& candidates = enchanted ? spells : normal;
+        auto it = std::find_if(candidates.begin(), candidates.end(), [&](const Move& m) {return m.from == selected && m.to == cursor; });
+        if (it == candidates.end()) {
+            const Piece piece = mBoard.GetPiece(cursor);
+            if (piece.type != PieceType::None && piece.color == mTurn) {
+                selected = cursor; enchanted = false; highlights.clear();
+                for (const auto& m : normal)if (m.from == selected)highlights.push_back(m);
+                message = "Selected " + ToString(piece.type) + " on " + SquareName(selected); continue;
+            }
+            message = "Illegal destination. Choose a highlighted square."; continue;
+        }
+        Move move = *it;
+        // Promotion choice uses the existing MoveValidator legality rules.
         const Piece moving = mBoard.GetPiece(move.from);
-        if (moving.type == PieceType::None || moving.color != mTurn) { message = "Select one of your own pieces."; continue; }
-        if (moving.type == PieceType::Pawn && (move.to.row == 0 || move.to.row == 7) && move.promotion == PieceType::None) {
-            message = "Promotion requires q, r, b, or n appended to the move."; continue;
+        if (moving.type == PieceType::Pawn && (move.to.row == 0 || move.to.row == 7)) {
+            message = "Promotion: Q queen, R rook, B bishop, N knight (default queen).";
+            mRenderer.ClearScreen();
+            std::cout << "\n  MAGE'S CHESS - PAWN PROMOTION\n";
+            std::cout << "  Choose promotion [Q/R/B/N]: ";
+            char choice = 'q';
+            std::string entry;
+            if (!std::getline(std::cin, entry))return;
+            if (!entry.empty())choice = char(std::tolower(static_cast<unsigned char>(entry[0])));
+            switch (choice) {
+            case 'r':move.promotion = PieceType::Rook; break;
+            case 'b':move.promotion = PieceType::Bishop; break;
+            case 'n':move.promotion = PieceType::Knight; break;
+            default:move.promotion = PieceType::Queen; break;
+            }
         }
         int enemies = 0, friendlies = 0;
         bool capture = false, castle = false;
@@ -157,11 +178,13 @@ void ChessGame::PlayMatch() {
         if (castle)mLastMove += " (castle)";
         if (move.promotion != PieceType::None)mLastMove += " (promoted to " + ToString(move.promotion) + ")";
         mHistory.push_back(mLastMove);
-        highlighted = { -1,-1 }; highlights.clear();
+        highlights.clear();
         if (mTurn == PlayerColor::White)++mWhiteTurns; else ++mBlackTurns;
         mTurn = Opponent(mTurn);
         if (mTurn == PlayerColor::White)++mFullMoveNumber;
         message = "Move accepted.";
+        selected = { -1,-1 }; enchanted = false;
+        cursor = move.to;
     }
 }
 
@@ -172,6 +195,7 @@ void ChessGame::StartNewGame() {
 }
 
 void ChessGame::Run() {
+    mRenderer.ConfigureConsole();
     while (true) {
         mRenderer.ClearScreen(); mRenderer.ShowMainMenu();
         std::cout << "\n  Select an option:\n";

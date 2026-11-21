@@ -1,7 +1,3 @@
-
-
-<br>
-
 # Project & Portfolio 1
 
 ### Tyler Hall

@@ -43,7 +43,7 @@ namespace {
     }
     void ResetColor() { Color(7); }
     std::string Clip(std::string s, size_t max) { if (s.size() > max && max > 3) s = s.substr(0, max - 3) + "..."; return s; }
-    void Put(int x, int y, const std::string& s, size_t max = SideW - 4) {
+    void Put(int x, int y, const std::string& s, size_t max = SideW - 4, int fg = 7) {
         if (x < 0 || y < 0 || x >= actualWidth || y >= actualHeight)return;
         const size_t count = std::min(max, static_cast<size_t>(actualWidth - x));
         if (count == 0)return;
@@ -59,13 +59,15 @@ namespace {
         DWORD written = 0;
         FillConsoleOutputCharacterA(h, ' ', static_cast<DWORD>(count), dest, &written);
         WriteConsoleOutputCharacterA(h, value.c_str(), static_cast<DWORD>(value.size()), dest, &written);
+        FillConsoleOutputAttribute(h, static_cast<WORD>(fg), static_cast<DWORD>(count), dest, &written);
 #else
         At(x, y);
+        (void)fg;
         std::cout << value;
         if (value.size() < count)std::cout << std::string(count - value.size(), ' ');
 #endif
     }
-    void Rule(int y, const std::string& title) { Put(SideX, y, "+" + std::string(SideW - 2, '-') + "+", SideW); Put(SideX + 2, y + 1, title); Put(SideX, y + 2, "|" + std::string(SideW - 2, '-') + "|", SideW); }
+    void Rule(int y, const std::string& title) { Put(SideX, y, "+" + std::string(SideW - 2, '-') + "+", SideW, 8); Put(SideX + 2, y + 1, title, SideW - 4, 11); Put(SideX, y + 2, "|" + std::string(SideW - 2, '-') + "|", SideW, 8); }
     void FitConsole() {
 #ifdef _WIN32
         HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -112,8 +114,8 @@ void ChessRenderer::ShowGameScreen(const ChessBoard& board, const Player& white,
     Position cursor, Position selected, const std::vector<Move>& highlights) const {
     RefreshDimensions();
     ClearScreen();
-    Put(2, 1, "MAGE'S CHESS  |  ELEMENTAL WARFARE", 35);
-    Put(2, 3, "BLACK: " + ToString(black.GetElement()) + "  Mana: " + std::to_string(black.GetMana()) + "/100", 35);
+    Put(2, 1, "MAGE'S CHESS  |  ELEMENTAL WARFARE", 35, 14);
+    Put(2, 3, "BLACK: " + ToString(black.GetElement()) + "  Mana: " + std::to_string(black.GetMana()) + "/100", 35, 11);
     Put(5, 5, "a  b  c  d  e  f  g  h", 30);
     for (int row = 0; row < 8; ++row) {
         At(2, 6 + row); std::cout << (8 - row) << "  ";
@@ -129,55 +131,63 @@ void ChessRenderer::ShowGameScreen(const ChessBoard& board, const Player& white,
         At(2, 6 + row); std::cout << "   ";
     }
     Put(5, 14, "a  b  c  d  e  f  g  h", 30);
-    Put(2, 17, "WHITE: " + ToString(white.GetElement()) + "  Mana: " + std::to_string(white.GetMana()) + "/100", 35);
-    Put(2, 19, "Cursor: " + SquareName(cursor), 35);
-    Put(2, 21, "CYAN cursor | YELLOW selected", 35);
-    Put(2, 22, "GREEN normal | PURPLE magic", 35);
+    Put(2, 17, "WHITE: " + ToString(white.GetElement()) + "  Mana: " + std::to_string(white.GetMana()) + "/100", 35, 15);
+    Put(2, 19, "Cursor: " + SquareName(cursor), 35, 15);
+
+    Put(2, 21, "CYAN", 4, 11);       
+    Put(6, 21, " cursor | ", 10, 15);
+    Put(16, 21, "YELLOW", 6, 14);    
+    Put(22, 21, " selected", 9, 15);
+
+    Put(2, 22, "GREEN", 5, 10);      
+    Put(7, 22, " normal | ", 10, 15);
+    Put(17, 22, "PURPLE", 6, 13);    
+    Put(23, 22, " magic", 6, 15);
 
     Rule(2, "MATCH STATUS");
-    Put(SideX + 2, 5, "TURN: " + ToString(turn) + (check ? "  [CHECK!]" : ""));
-    Put(SideX + 2, 6, "LAST: " + (lastMove.empty() ? std::string("No moves yet") : lastMove));
-    Put(SideX + 2, 7, "White: " + ToString(white.GetElement()) + "  " + std::to_string(white.GetMana()) + "/100 mana");
-    Put(SideX + 2, 8, "Black: " + ToString(black.GetElement()) + "  " + std::to_string(black.GetMana()) + "/100 mana");
+    Put(SideX + 2, 5, "TURN: " + ToString(turn) + (check ? "  [CHECK!]" : ""), SideW - 4, check ? 12 : 14);
+    Put(SideX + 2, 6, "LAST: " + (lastMove.empty() ? std::string("No moves yet") : lastMove), SideW - 4, 7);
+    Put(SideX + 2, 7, "White: " + ToString(white.GetElement()) + "  " + std::to_string(white.GetMana()) + "/100 mana", SideW - 4, 11);
+    Put(SideX + 2, 8, "Black: " + ToString(black.GetElement()) + "  " + std::to_string(black.GetMana()) + "/100 mana", SideW - 4, 11);
     Rule(10, "ENCHANTMENT STATUS");
-    Put(SideX + 2, 13, "Turn " + std::to_string(ownTurn) + " | " + (canEnchant ? "Available (subject to mana)" : "Unavailable: first turn / cooldown"));
+    Put(SideX + 2, 13, "Turn " + std::to_string(ownTurn) + " | " + (canEnchant ? "Available (subject to mana)" : "Unavailable: first turn / cooldown"), SideW - 4, canEnchant ? 10 : 8);
     Rule(15, "RECENT MOVES");
-    if (history.empty())Put(SideX + 2, 18, "No moves yet.");
+    if (history.empty())Put(SideX + 2, 18, "No moves yet.", SideW - 4, 8);
     else {
         size_t start = history.size() > 5 ? history.size() - 5 : 0;
         for (size_t i = start; i < history.size(); ++i)
-            Put(SideX + 2, 18 + static_cast<int>(i - start), std::to_string(i + 1) + ". " + history[i]);
+            Put(SideX + 2, 18 + static_cast<int>(i - start), std::to_string(i + 1) + ". " + history[i], SideW - 4, 7);
     }
     const int panelY = 24;
     Rule(panelY, help ? "HELP" : inspect ? "PIECE INSPECTION" : "INFORMATION");
     if (help) {
-        Put(SideX + 2, panelY + 3, "Select your piece, then choose a highlighted destination.");
-        Put(SideX + 2, panelY + 4, "Green highlights show legal standard moves.");
-        Put(SideX + 2, panelY + 5, "Purple highlights show available enchanted moves.");
-        Put(SideX + 2, panelY + 6, "Enchanted attacks cannot directly check the king.");
+        Put(SideX + 2, panelY + 3, "Select your piece, then choose a highlighted destination.", SideW - 4, 7);
+        Put(SideX + 2, panelY + 4, "Green highlights show legal standard moves.", SideW - 4, 10);
+        Put(SideX + 2, panelY + 5, "Purple highlights show available enchanted moves.", SideW - 4, 13);
+        Put(SideX + 2, panelY + 6, "Enchanted attacks cannot directly check the king.", SideW - 4, 8);
     }
     else if (inspect) {
         const Piece& p = board.GetPiece(cursor);
-        Put(SideX + 2, panelY + 3, "Square: " + SquareName(cursor));
-        if (p.type == PieceType::None)Put(SideX + 2, panelY + 4, "Empty square");
+        Put(SideX + 2, panelY + 3, "Square: " + SquareName(cursor), SideW - 4, 14);
+        if (p.type == PieceType::None)Put(SideX + 2, panelY + 4, "Empty square", SideW - 4, 8);
         else {
             const Player& owner = p.color == PlayerColor::White ? white : black;
-            Put(SideX + 2, panelY + 4, "Piece: " + ToString(p.color) + " " + ToString(p.type));
-            Put(SideX + 2, panelY + 5, "Element: " + ToString(owner.GetElement()));
-            Put(SideX + 2, panelY + 6, std::string("Ability: ") + EnchantmentManager::GetAbilityName(p.type, owner.GetElement()));
+            Put(SideX + 2, panelY + 4, "Piece: " + ToString(p.color) + " " + ToString(p.type), SideW - 4, 15);
+            Put(SideX + 2, panelY + 5, "Element: " + ToString(owner.GetElement()), SideW - 4, 11);
+            Put(SideX + 2, panelY + 6, std::string("Ability: ") + EnchantmentManager::GetAbilityName(p.type, owner.GetElement()), SideW - 4, 13);
             int cost = EnchantmentManager::GetCost(p.type);
-            Put(SideX + 2, panelY + 7, cost < 0 ? "Enchantment unavailable" : "Cost: " + std::to_string(cost) + " mana");
+            Put(SideX + 2, panelY + 7, cost < 0 ? "Enchantment unavailable" : "Cost: " + std::to_string(cost) + " mana", SideW - 4, cost < 0 ? 8 : 14);
         }
 
     }
-    else Put(SideX + 2, panelY + 3, message.empty() ? "Select a piece with Enter to begin." : message);
+    else Put(SideX + 2, panelY + 3, message.empty() ? "Select a piece with Enter to begin." : message, SideW - 4, 11);
     // Dedicated footer. Never include controls in the information panel.
     // Use viewport coordinates and direct cell writes so lines cannot wrap.
     const int footerY = actualHeight - 4;
     if (footerY >= panelY + 10) {
-        Put(2, footerY, std::string(std::max(0, actualWidth - 4), '='), actualWidth - 4);
-        Put(2, footerY + 1, "ARROWS Navigate  |  ENTER Select/Move  |  E Magic  |  I Inspect", actualWidth - 4);
-        Put(2, footerY + 2, "H Help  |  S Save  |  ESC Cancel/Close  |  M Main Menu", actualWidth - 4);
+        Put(2, footerY, std::string(std::max(0, actualWidth - 4), '='), actualWidth - 4, 8);
+        Put(2, footerY + 1, "ARROWS Navigate  |  ENTER Select/Move  |  E Magic  |  I Inspect", actualWidth - 4, 11);
+        Put(2, footerY + 2, "H Help  |  S Save  |  ESC Cancel/Close  |  M Main Menu", actualWidth - 4, 11);
     }
     std::cout.flush();
 }

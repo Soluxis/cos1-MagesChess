@@ -16,6 +16,7 @@ public:
         const std::string& message, bool help, bool inspect, Position cursor,
         Position selected, const std::vector<Move>& highlights) const;
     void ShowMainMenu() const;
+    void ShowGameOver(PlayerColor turn, bool check, size_t moves) const;
     void ShowElementMenu(PlayerColor color) const;
     void ShowBoard(const ChessBoard& board, const Player& white,
         const Player& black, const std::string& message = "",

@@ -68,10 +68,7 @@ void ChessGame::PlayMatch() {
             ownTurn, active.CanEnchant(ownTurn), message, infoMode == InfoMode::Help,
             infoMode == InfoMode::Inspect, cursor, selected, highlights);
         if (normal.empty() && spells.empty()) {
-            std::cout << "\n  " << (check ? "CHECKMATE! " : "STALEMATE! ");
-            if (check)std::cout << ToString(Opponent(mTurn)) << " wins!\n";
-            else std::cout << "Draw.\n";
-            std::cout << "  Press Enter to return to menu...";
+            mRenderer.ShowGameOver(mTurn, check, mHistory.size());
             while (InputManager::ReadKey() != InputKey::Enter) {}
             return;
         }

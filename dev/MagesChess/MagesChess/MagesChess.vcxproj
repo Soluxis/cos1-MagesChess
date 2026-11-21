@@ -208,6 +208,7 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MoveValidator.cpp" />
     <ClCompile Include="Player.cpp" />
+    <ClCompile Include="SaveManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ChessBoard.h" />
@@ -218,6 +219,7 @@
     <ClInclude Include="InputManager.h" />
     <ClInclude Include="MoveValidator.h" />
     <ClInclude Include="Player.h" />
+    <ClInclude Include="SaveManager.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

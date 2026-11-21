@@ -68,16 +68,16 @@ void ChessGame::PlayMatch() {
             ownTurn, active.CanEnchant(ownTurn), message, infoMode == InfoMode::Help,
             infoMode == InfoMode::Inspect, cursor, selected, highlights);
         if (normal.empty() && spells.empty()) {
-            std::cout << "\n  " << (check ? "CHECKMATE! " : "STALEMATE! ");
-            if (check)std::cout << ToString(Opponent(mTurn)) << " wins!\n";
-            else std::cout << "Draw.\n";
-            std::cout << "  Press Enter to return to menu...";
+            mRenderer.ShowGameOver(mTurn, check, mHistory.size());
             while (InputManager::ReadKey() != InputKey::Enter) {}
             return;
         }
         mRenderer.ShowControls();
         const InputKey key = InputManager::ReadKey();
         if (key == InputKey::Menu)return;
+        if (key == InputKey::Save) {
+            std::string result; SaveGame(result); message = result; infoMode = InfoMode::Status; continue;
+        }
         if (key == InputKey::Up) { infoMode = InfoMode::Status; cursor.row = (cursor.row + 7) % 8; continue; }
         if (key == InputKey::Down) { infoMode = InfoMode::Status; cursor.row = (cursor.row + 1) % 8; continue; }
         if (key == InputKey::Left) { infoMode = InfoMode::Status; cursor.column = (cursor.column + 7) % 8; continue; }
@@ -188,6 +188,38 @@ void ChessGame::PlayMatch() {
     }
 }
 
+bool ChessGame::SaveGame(std::string& message) const {
+    SavedGame state;
+    state.board = mBoard;
+    state.whiteElement = mWhite.GetElement(); state.blackElement = mBlack.GetElement();
+    state.whiteMana = mWhite.GetMana(); state.blackMana = mBlack.GetMana();
+    state.whiteLastEnchant = mWhite.GetLastEnchantedTurn();
+    state.blackLastEnchant = mBlack.GetLastEnchantedTurn();
+    state.turn = mTurn; state.enPassant = mEnPassantTarget;
+    state.fullMove = mFullMoveNumber; state.whiteTurns = mWhiteTurns; state.blackTurns = mBlackTurns;
+    state.lastMove = mLastMove; state.history = mHistory;
+    std::string error;
+    if (!SaveManager::Save(state, "mages_chess.save", error)) { message = "Save failed: " + error; return false; }
+    message = "Game saved to mages_chess.save"; return true;
+}
+
+void ChessGame::LoadGame() {
+    SavedGame state; std::string error;
+    if (!SaveManager::Load("mages_chess.save", state, error)) {
+        mRenderer.ShowMessage("Load failed: " + error);
+        std::cout << "  Press Enter to return to menu...";
+        std::string ignored; std::getline(std::cin, ignored);
+        return;
+    }
+    mBoard = state.board;
+    mWhite.Restore(state.whiteElement, state.whiteMana, state.whiteLastEnchant);
+    mBlack.Restore(state.blackElement, state.blackMana, state.blackLastEnchant);
+    mTurn = state.turn; mEnPassantTarget = state.enPassant;
+    mFullMoveNumber = state.fullMove; mWhiteTurns = state.whiteTurns; mBlackTurns = state.blackTurns;
+    mLastMove = state.lastMove; mHistory = state.history;
+    PlayMatch();
+}
+
 void ChessGame::StartNewGame() {
     mBoard.Reset(); mWhite.Reset(SelectElement(PlayerColor::White)); mBlack.Reset(SelectElement(PlayerColor::Black));
     mTurn = PlayerColor::White; mEnPassantTarget = { -1,-1 }; mFullMoveNumber = 1; mLastMove = ""; mHistory.clear(); mWhiteTurns = 0; mBlackTurns = 0;
@@ -199,8 +231,9 @@ void ChessGame::Run() {
     while (true) {
         mRenderer.ClearScreen(); mRenderer.ShowMainMenu();
         std::cout << "\n  Select an option:\n";
-        int choice = ReadChoice(0, 1);
+        int choice = ReadChoice(0, 2);
         if (choice == 0) { mRenderer.ShowMessage("Thanks for playing Mage's Chess!"); return; }
-        StartNewGame();
+        if (choice == 2)LoadGame();
+        else StartNewGame();
     }
 }

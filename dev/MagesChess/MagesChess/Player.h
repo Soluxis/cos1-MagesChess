@@ -15,6 +15,8 @@ public:
     bool SpendMana(int amount);
     void GainMana(int amount);
     void RecordEnchantment(int ownTurnNumber);
+    int GetLastEnchantedTurn() const;
+    bool Restore(Element element, int mana, int lastEnchantedTurn);
 
 private:
     PlayerColor mColor;

@@ -31,6 +31,7 @@ InputKey InputManager::ReadKey() {
         case 'I': result = InputKey::Inspect; break;
         case 'H': result = InputKey::Help; break;
         case 'M': result = InputKey::Menu; break;
+        case 'S': result = InputKey::Save; break;
         }
         if (result != InputKey::Unknown) { SetConsoleMode(handle, original); return result; }
     }
@@ -55,6 +56,7 @@ InputKey InputManager::ReadKey() {
     else if (c == 'i' || c == 'I')result = InputKey::Inspect;
     else if (c == 'h' || c == 'H')result = InputKey::Help;
     else if (c == 'm' || c == 'M')result = InputKey::Menu;
+    else if (c == 's' || c == 'S')result = InputKey::Save;
     tcsetattr(STDIN_FILENO, TCSANOW, &old);
     return result;
 #endif

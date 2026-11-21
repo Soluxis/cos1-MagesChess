@@ -42,3 +42,10 @@ void Player::RecordEnchantment(int ownTurnNumber)
 {
     mLastEnchantedTurn = ownTurnNumber;
 }
+
+int Player::GetLastEnchantedTurn() const { return mLastEnchantedTurn; }
+bool Player::Restore(Element element, int mana, int lastTurn) {
+    if (mana < 0 || mana > MaxMana || lastTurn < -1) return false;
+    mElement = element; mMana = mana; mLastEnchantedTurn = lastTurn;
+    return true;
+}

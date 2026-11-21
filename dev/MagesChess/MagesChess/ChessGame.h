@@ -5,6 +5,7 @@
 #include "MoveValidator.h"
 #include "EnchantmentManager.h"
 #include "InputManager.h"
+#include "SaveManager.h"
 #include <vector>
 #include <string>
 
@@ -25,6 +26,8 @@ private:
     int mWhiteTurns = 0;
     int mBlackTurns = 0;
     void StartNewGame();
+    void LoadGame();
+    bool SaveGame(std::string& message) const;
     void PlayMatch();
     Element SelectElement(PlayerColor color);
     static int ReadChoice(int minimum, int maximum);

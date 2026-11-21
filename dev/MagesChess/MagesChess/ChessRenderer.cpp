@@ -97,7 +97,7 @@ void ChessRenderer::ClearScreen() const {
 #endif
 }
 void ChessRenderer::ShowMainMenu() const {
-    std::cout << "\n  =======================================\n             MAGE'S CHESS\n  =======================================\n       Strategy meets elemental magic\n\n       [1] Start New Game\n       [0] Exit\n\n  =======================================\n";
+    std::cout << "\n  =======================================\n             MAGE'S CHESS\n  =======================================\n       Strategy meets elemental magic\n\n       [1] Start New Game\n       [2] Load Saved Game\n       [0] Exit\n\n  =======================================\n";
 }
 void ChessRenderer::ShowElementMenu(PlayerColor color) const {
     std::cout << "\n  " << ToString(color) << " - Choose Your Element\n  ---------------------------------------\n    [1] Scorch  - Aggression and sacrifice\n    [2] River   - Adaptation and defense\n    [3] Zephyr  - Mobility and freedom\n  ---------------------------------------\n";
@@ -171,11 +171,13 @@ void ChessRenderer::ShowGameScreen(const ChessBoard& board, const Player& white,
 
     }
     else Put(SideX + 2, panelY + 3, message.empty() ? "Select a piece with Enter to begin." : message);
+    // Dedicated footer. Never include controls in the information panel.
     // Use viewport coordinates and direct cell writes so lines cannot wrap.
     const int footerY = actualHeight - 4;
     if (footerY >= panelY + 10) {
         Put(2, footerY, std::string(std::max(0, actualWidth - 4), '='), actualWidth - 4);
-        Put(2, footerY + 2, "ARROWS Navigate | ENTER Select | E Magic | I Inspect | H Help | ESC Cancel | M Main Menu", actualWidth - 4);
+        Put(2, footerY + 1, "ARROWS Navigate  |  ENTER Select/Move  |  E Magic  |  I Inspect", actualWidth - 4);
+        Put(2, footerY + 2, "H Help  |  S Save  |  ESC Cancel/Close  |  M Main Menu", actualWidth - 4);
     }
     std::cout.flush();
 }
